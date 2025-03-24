@@ -1,9 +1,15 @@
+options:
+  logging: CLOUD_LOGGING_ONLY  # Use Cloud Logging for build logs
+
 steps:
+  # Step 1: Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'gcr.io/dc-assi/mihir-flask:latest', '.']
 
+  # Step 2: Push the Docker image to Google Container Registry (GCR)
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/dc-assi/mihir-flask:latest']
 
+  # Step 3: Update the Compute Engine instance with the new container image
   - name: 'gcr.io/cloud-builders/gcloud'
     args: ['compute', 'instances', 'update-container', 'limbad-flask-app-instance', '--container-image', 'gcr.io/dc-assi/mihir-flask:latest', '--zone', 'us-central1-a']
