@@ -1,0 +1,9 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/dc-assi/mihir-flask:latest', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/dc-assi/mihir-flask:latest']
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: ['compute', 'instances', 'update-container', 'limbad-flask-app-instance', '--container-image', 'gcr.io/dc-assi/mihir-flask:latest', '--zone', 'us-central1-a']
