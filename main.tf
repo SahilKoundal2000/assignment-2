@@ -1,30 +1,64 @@
 provider "google" {
-  project = "dc-assi"
-  region  = "us-central1"
+    project = "orbital-outpost-442521-r6"
+    region = "northamerica-northeast-2"
 }
 
-resource "google_compute_network" "vpc_network" {
-  name = "limbad-flask-vpc"  # Added prefix
+# VPC
+resource "google_compute_network" "sahil_vpc" {
+  name                    = "sahil-vpc"
+  auto_create_subnetworks = false
 }
 
-resource "google_compute_subnetwork" "public_subnet" {
-  name          = "limbad-public-subnet"  # Added prefix
+# Public Subnet
+resource "google_compute_subnetwork" "sahil_public_subnet" {
+  name          = "sahil-public-subnet"
   ip_cidr_range = "10.0.1.0/24"
-  region        = "us-central1"
-  network       = google_compute_network.vpc_network.id
+  region        = "northamerica-northeast2"
+  network       = google_compute_network.sahil_vpc.id
 }
 
-resource "google_compute_subnetwork" "private_subnet" {
-  name          = "limbad-private-subnet"  # Added prefix
+# Private Subnet
+resource "google_compute_subnetwork" "sahil_private_subnet" {
+  name          = "sahil-private-subnet"
   ip_cidr_range = "10.0.2.0/24"
-  region        = "us-central1"
-  network       = google_compute_network.vpc_network.id
+  region        = "northamerica-northeast2"
+  network       = google_compute_network.sahil_vpc.id
 }
 
-resource "google_compute_instance" "flask_instance" {
-  name         = "limbad-flask-app-instance"  # Added prefix
+# Firewall rule to allow access to the application port 5000
+resource "google_compute_firewall" "sahil_app_firewall" {
+  name    = "sahil-app-firewall"
+  network = google_compute_network.sahil_vpc.id
+
+  allow {
+    protocol = "tcp"
+    ports    = ["5000"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["sahil-app"]
+}
+
+# Firewall rule to allow SSH access
+resource "google_compute_firewall" "sahil_ssh_firewall" {
+  name    = "sahil-ssh-firewall"
+  network = google_compute_network.sahil_vpc.id
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["sahil-app"]
+}
+
+# Compute Engine Instance
+resource "google_compute_instance" "sahil_instance" {
+  name         = "sahil-instance"
   machine_type = "e2-medium"
-  zone         = "us-central1-a"
+  zone         = "northamerica-northeast2-a"
+  tags         = ["sahil-app"]
 
   boot_disk {
     initialize_params {
@@ -33,32 +67,31 @@ resource "google_compute_instance" "flask_instance" {
   }
 
   network_interface {
-    subnetwork = google_compute_subnetwork.public_subnet.id
-    access_config {}
+    network    = google_compute_network.sahil_vpc.id
+    subnetwork = google_compute_subnetwork.sahil_public_subnet.id
+    access_config {
+      // Ephemeral public IP
+    }
   }
 
   metadata = {
     gce-container-declaration = <<EOF
-    spec:
-      containers:
-        - name: flask-app
-          image: gcr.io/dc-assi/mihir-flask:latest
-          ports:
-            - containerPort: 5000
-    EOF
+spec:
+  containers:
+    - image: 'sahilkoundal2023/python-backend:latest'
+      name: sahil-flask-app
+      ports:
+        - containerPort: 5000
+      restartPolicy: Always
+EOF
   }
 
-  tags = ["limbad-flask-app"]  # Added prefix
-}
-
-resource "google_compute_firewall" "flask_firewall" {
-  name    = "limbad-flask-firewall"  # Added prefix
-  network = google_compute_network.vpc_network.id
-
-  allow {
-    protocol = "tcp"
-    ports    = ["5000"]
+  service_account {
+    scopes = [
+      "https://www.googleapis.com/auth/devstorage.read_only",
+      "https://www.googleapis.com/auth/logging.write",
+      "https://www.googleapis.com/auth/monitoring.write",
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
   }
-
-  source_ranges = ["0.0.0.0/0"]
 }
